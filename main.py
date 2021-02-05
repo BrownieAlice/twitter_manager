@@ -15,8 +15,6 @@ consumer_key: str = config["consumer_key"]
 consumer_secret: str = config["comsumer_secret"]
 access_token: str = config["access_token"]
 access_token_secret: str = config["access_token_secret"]
-twitter_api = OAuth1Session(
-    consumer_key, consumer_secret, access_token, access_token_secret)
 
 user_id: str = config["user_id"]
 followers_url = "https://api.twitter.com/2/users/{}/followers".format(user_id)
@@ -197,6 +195,9 @@ def follows_analyzer(follows: Dict[int, "User"]):
 
 
 def send_dm(content: str):
+    twitter_api = OAuth1Session(
+        consumer_key, consumer_secret, access_token, access_token_secret)
+
     headers = {"content-type": "application/json"}
     payload = {
         "event": {
@@ -215,6 +216,9 @@ def send_dm(content: str):
 
 
 def main() -> None:
+    twitter_api = OAuth1Session(
+        consumer_key, consumer_secret, access_token, access_token_secret)
+
     followers = twitter_api.get(followers_url, params=api_params)
     if followers.status_code == 200:
         data = json.loads(followers.text)
