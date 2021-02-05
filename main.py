@@ -1,3 +1,4 @@
+import gc
 import sys
 import json
 import yaml
@@ -23,32 +24,7 @@ follows_url = "https://api.twitter.com/2/users/{}/following".format(user_id)
 dm_url = 'https://api.twitter.com/1.1/direct_messages/events/new.json'
 api_params = {"max_results": 1000}
 
-db_file = config["db_file"]
-
-conn = sqlite3.connect(db_file)
-cur = conn.cursor()
-cur.execute(
-    "CREATE TABLE IF NOT EXISTS followers(user_id INTEGER PRIMARY KEY, screen_name TEXT, user_name TEXT)")
-cur.execute(
-    "CREATE TABLE IF NOT EXISTS follows(user_id INTEGER PRIMARY KEY, screen_name TEXT, user_name TEXT)")
-cur.execute(
-    "CREATE TABLE IF NOT EXISTS follower_events(user_id INTEGER, is_follower INTEGER, time REAL)")
-cur.execute(
-    "CREATE INDEX IF NOT EXISTS follower_user_id_index on follower_events(user_id)")
-cur.execute(
-    "CREATE TABLE IF NOT EXISTS follow_events(user_id INTEGER, is_followed INTEGER, time REAL)")
-cur.execute(
-    "CREATE INDEX IF NOT EXISTS follow_user_id_index on follow_events(user_id)")
-cur.execute(
-    "CREATE TABLE IF NOT EXISTS screen_names(user_id INTEGER, screen_name TEXT, time REAL)")
-cur.execute(
-    "CREATE INDEX IF NOT EXISTS screen_user_id_index on screen_names(user_id)")
-cur.execute(
-    "CREATE TABLE IF NOT EXISTS user_names(user_id INTEGER, user_name TEXT, time REAL)")
-cur.execute(
-    "CREATE INDEX IF NOT EXISTS user_user_id_index on user_names(user_id)")
-conn.commit()
-conn.close()
+db_file: str = config["db_file"]
 
 
 @dataclass
@@ -61,6 +37,33 @@ class User:
         self.user_id = int(user_id)
         self.screen_name = screen_name
         self.user_name = user_name
+
+
+def init_table() -> None:
+    conn = sqlite3.connect(db_file)
+    cur = conn.cursor()
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS followers(user_id INTEGER PRIMARY KEY, screen_name TEXT, user_name TEXT)")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS follows(user_id INTEGER PRIMARY KEY, screen_name TEXT, user_name TEXT)")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS follower_events(user_id INTEGER, is_follower INTEGER, time REAL)")
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS follower_user_id_index on follower_events(user_id)")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS follow_events(user_id INTEGER, is_followed INTEGER, time REAL)")
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS follow_user_id_index on follow_events(user_id)")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS screen_names(user_id INTEGER, screen_name TEXT, time REAL)")
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS screen_user_id_index on screen_names(user_id)")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS user_names(user_id INTEGER, user_name TEXT, time REAL)")
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS user_user_id_index on user_names(user_id)")
+    conn.commit()
+    conn.close()
 
 
 def followers_analyzer(followers: Dict[int, "User"]):
@@ -211,7 +214,7 @@ def send_dm(content: str):
             res.status_code, res.text))
 
 
-while True:
+def main() -> None:
     followers = twitter_api.get(followers_url, params=api_params)
     if followers.status_code == 200:
         data = json.loads(followers.text)
@@ -237,4 +240,10 @@ while True:
             follows.status_code, follows.text))
 
     sys.stdout.flush()
+
+
+init_table()
+while True:
+    main()
+    gc.collect()
     time.sleep(3600)
