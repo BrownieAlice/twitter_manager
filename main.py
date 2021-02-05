@@ -92,8 +92,8 @@ def followers_analyzer(followers: Dict[int, "User"]):
                         user.user_id, user.screen_name, user.user_name])
             cur.execute("INSERT INTO follower_events VALUES (?, ?, ?)", [
                         user.user_id, 1, current_time])
-            message += "{}(_at_{}) followed you\n".format(user.screen_name,
-                                                          user.user_name)
+            message += "{}(@{}) followed you\n".format(user.screen_name,
+                                                       user.user_name)
             screen_name_update = True
             user_name_update = True
 
@@ -119,8 +119,8 @@ def followers_analyzer(followers: Dict[int, "User"]):
                         [user.user_id])
             cur.execute("INSERT INTO follower_events VALUES (?, ?, ?)", [
                         user.user_id, 0, current_time])
-            message += "{}(_at_{}) unfollowed you\n".format(user.screen_name,
-                                                            user.user_name)
+            message += "{}(@{}) unfollowed you\n".format(user.screen_name,
+                                                         user.user_name)
 
     conn.commit()
     conn.close()
@@ -157,7 +157,7 @@ def follows_analyzer(follows: Dict[int, "User"]):
                         user.user_id, user.screen_name, user.user_name])
             cur.execute("INSERT INTO follow_events VALUES (?, ?, ?)", [
                         user.user_id, 1, current_time])
-            message += "you followed {}(_at_{})\n".format(
+            message += "you followed {}(@{})\n".format(
                 user.screen_name, user.user_name)
             screen_name_update = True
             user_name_update = True
@@ -184,7 +184,7 @@ def follows_analyzer(follows: Dict[int, "User"]):
                         [user.user_id])
             cur.execute("INSERT INTO follow_events VALUES (?, ?, ?)", [
                         user.user_id, 0, current_time])
-            message += "you unfollowed {}(_at_{})\n".format(
+            message += "you unfollowed {}(@{})\n".format(
                 user.screen_name, user.user_name)
 
     conn.commit()
@@ -247,7 +247,4 @@ def main() -> None:
 
 
 init_table()
-while True:
-    main()
-    gc.collect()
-    time.sleep(3600)
+main()
