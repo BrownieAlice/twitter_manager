@@ -1,3 +1,4 @@
+import sys
 import json
 import yaml
 import time
@@ -235,4 +236,5 @@ while True:
         print("getting following error: [status_code: {}, text: {}]".format(
             follows.status_code, follows.text))
 
+    sys.stdout.flush()
     time.sleep(3600)
