@@ -4,7 +4,8 @@ import json
 import yaml
 import time
 import sqlite3
-from typing import Dict
+import datetime
+from typing import Dict, List
 from dataclasses import dataclass
 from requests_oauthlib import OAuth1Session
 
@@ -15,14 +16,21 @@ consumer_key: str = config["consumer_key"]
 consumer_secret: str = config["comsumer_secret"]
 access_token: str = config["access_token"]
 access_token_secret: str = config["access_token_secret"]
+delete_flag_strs: List[str] = ["#あとでけす", "#あとで消す", "#後でけす", "#後で消す"]
 
-user_id: str = config["user_id"]
-followers_url = "https://api.twitter.com/2/users/{}/followers".format(user_id)
-follows_url = "https://api.twitter.com/2/users/{}/following".format(user_id)
-dm_url = 'https://api.twitter.com/1.1/direct_messages/events/new.json'
+config_user_id: str = config["user_id"]
+followers_url = "https://api.twitter.com/2/users/{}/followers".format(
+    config_user_id)
+follows_url = "https://api.twitter.com/2/users/{}/following".format(
+    config_user_id)
+dm_url = "https://api.twitter.com/1.1/direct_messages/events/new.json"
+user_tweets_url = "https://api.twitter.com/2/users/{}/tweets".format(
+    config_user_id)
+delete_tweet_url = "https://api.twitter.com/1.1/statuses/destroy/{}.json"
 api_params = {"max_results": 1000}
 
 db_file: str = config["db_file"]
+jst = datetime.timezone(datetime.timedelta(hours=+9), "JST")
 
 
 @dataclass
@@ -203,7 +211,7 @@ def send_dm(content: str):
         "event": {
             "type": "message_create",
             "message_create": {
-                "target": {"recipient_id": user_id},
+                "target": {"recipient_id": config_user_id},
                 "message_data": {"text": content}
             }
         }
@@ -215,7 +223,7 @@ def send_dm(content: str):
             res.status_code, res.text))
 
 
-def main() -> None:
+def ff_check() -> None:
     twitter_api = OAuth1Session(
         consumer_key, consumer_secret, access_token, access_token_secret)
 
@@ -246,5 +254,46 @@ def main() -> None:
     sys.stdout.flush()
 
 
+def tweet_check() -> None:
+    twitter_api = OAuth1Session(
+        consumer_key, consumer_secret, access_token, access_token_secret)
+    search_params = {"max_results": 100, "tweet.fields": "created_at"}
+
+    tweets = twitter_api.get(user_tweets_url, params=search_params)
+    thr_time = datetime.datetime.now(jst) - datetime.timedelta(minutes=15)
+    if tweets.status_code == 200:
+        data = json.loads(tweets.text)
+        candidate_tweet_ids: List[int] = []
+        for tweet in data["data"]:
+            tweet_id = int(tweet["id"])
+            tweet_text: str = tweet["text"]
+            tweet_time: str = tweet["created_at"]
+            if tweet_time.endswith("Z"):
+                tweet_time = tweet_time.rstrip("Z") + "+00:00"
+
+            tweet_time_dt = datetime.datetime.fromisoformat(tweet_time)
+            if tweet_time_dt < thr_time:
+                for delete_flag_str in delete_flag_strs:
+                    if delete_flag_str in tweet_text:
+                        candidate_tweet_ids.append(tweet_id)
+                        break
+        delete_tweets(candidate_tweet_ids)
+    else:
+        print("getting tweets error: [status_code: {}, text: {}]".format(
+            tweets.status_code, tweets.text))
+
+
+def delete_tweets(tweet_ids: List[int]) -> None:
+    twitter_api = OAuth1Session(
+        consumer_key, consumer_secret, access_token, access_token_secret)
+
+    for tweet_id in tweet_ids:
+        res = twitter_api.post(delete_tweet_url.format(tweet_id))
+        if res.status_code != 200:
+            print("deleting tweet error: [status_code: {}, text: {}]".format(
+                res.status_code, res.text))
+
+
 init_table()
-main()
+ff_check()
+tweet_check()
